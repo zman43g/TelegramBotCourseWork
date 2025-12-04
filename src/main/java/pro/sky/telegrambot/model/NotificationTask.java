@@ -1,6 +1,7 @@
 package pro.sky.telegrambot.model;
 
 import javax.persistence.*;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -19,21 +20,18 @@ public class NotificationTask {
     private String messageText;
 
     @Column(name = "notification_date_time", nullable = false)
-    private LocalDateTime notificationDateTime;
+    private Instant notificationDateTime;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "is_sent", nullable = false)
-    private Boolean isSent = false;
+    private boolean isSent = false;
 
-    @Column(name = "sent_at")
-    private LocalDateTime sentAt;
-
-        public NotificationTask() {
+    public NotificationTask() {
     }
 
-    public NotificationTask(Long chatId, String messageText, LocalDateTime notificationDateTime) {
+    public NotificationTask(Long chatId, String messageText, Instant notificationDateTime) {
         this.chatId = chatId;
         this.messageText = messageText;
         this.notificationDateTime = notificationDateTime;
@@ -41,11 +39,10 @@ public class NotificationTask {
 
     public void markAsSent() {
         this.isSent = true;
-        this.sentAt = LocalDateTime.now();
     }
 
     public boolean shouldBeSentNow() {
-        return !isSent && notificationDateTime.isBefore(LocalDateTime.now().plusMinutes(1));
+        return !isSent && notificationDateTime.isBefore(Instant.now().plusSeconds(60));
     }
 
     public Long getId() {
@@ -72,11 +69,11 @@ public class NotificationTask {
         this.messageText = messageText;
     }
 
-    public LocalDateTime getNotificationDateTime() {
+    public Instant getNotificationDateTime() {
         return notificationDateTime;
     }
 
-    public void setNotificationDateTime(LocalDateTime notificationDateTime) {
+    public void setNotificationDateTime(Instant notificationDateTime) {
         this.notificationDateTime = notificationDateTime;
     }
 
@@ -94,14 +91,6 @@ public class NotificationTask {
 
     public void setSent(Boolean sent) {
         isSent = sent;
-    }
-
-    public LocalDateTime getSentAt() {
-        return sentAt;
-    }
-
-    public void setSentAt(LocalDateTime sentAt) {
-        this.sentAt = sentAt;
     }
 
     @Override
@@ -128,7 +117,6 @@ public class NotificationTask {
                 ", notificationDateTime=" + notificationDateTime +
                 ", createdAt=" + createdAt +
                 ", isSent=" + isSent +
-                ", sentAt=" + sentAt +
                 '}';
     }
 }

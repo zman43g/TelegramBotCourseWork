@@ -7,7 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -34,7 +36,6 @@ public class NotificationTaskService {
     @Transactional
     public String parseAndSaveNotification(Long chatId, String messageText) {
         try {
-
             ParsedMessage parsedMessage = parseMessage(messageText);
 
             if (parsedMessage == null) {
@@ -45,11 +46,10 @@ public class NotificationTaskService {
                 return "Дата напоминания не может быть в прошлом!";
             }
 
-
             NotificationTask task = new NotificationTask(
                     chatId,
                     parsedMessage.text,
-                    parsedMessage.dateTime
+                    parsedMessage.dateTime.toInstant(ZoneOffset.ofHours(7))
             );
 
             repository.save(task);
@@ -92,7 +92,7 @@ public class NotificationTaskService {
 
 
     public List<NotificationTask> getTasksForNotification() {
-        return repository.findTasksForNotification(LocalDateTime.now());
+        return repository.findTasksForNotification(Instant.now());
     }
 
     @Transactional
@@ -103,7 +103,6 @@ public class NotificationTaskService {
             logger.info("Напоминание {} помечено как отправленное", taskId);
         });
     }
-
 
     private static class ParsedMessage {
         final LocalDateTime dateTime;

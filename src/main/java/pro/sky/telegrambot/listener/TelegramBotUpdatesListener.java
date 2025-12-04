@@ -8,12 +8,16 @@ import com.pengrad.telegrambot.model.Chat;
 import com.pengrad.telegrambot.model.User;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.SendResponse;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import pro.sky.telegrambot.model.NotificationTask;
 import pro.sky.telegrambot.service.NotificationTaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import javax.annotation.PostConstruct;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -44,49 +48,50 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
         for (Update update : updates) {
             try {
-                logger.debug("Processing update ID: {}", update.updateId());
-
-                Message message = update.message();
-
-                if (message == null || message.text() == null) {
-                    continue;
-                }
-
-                Chat chat = message.chat();
-                if (chat == null) {
-                    continue;
-                }
-
-                Long chatId = chat.id();
-                String messageText = message.text().trim();
-                User user = message.from();
-                String userName = getUserName(user);
-
-                logger.info("Message from {} ({}): {}", userName, chatId, messageText);
-
-                // Обработка команд
-                if ("/start".equals(messageText)) {
-                    handleStartCommand(chatId, userName);
-                    processedCount++;
-                }
-                // Показ всех напоминаний
-                else if ("/myreminders".equals(messageText) || "/list".equals(messageText)) {
-                    handleListCommand(chatId);
-                    processedCount++;
-                }
-
-                else if (!messageText.startsWith("/")) {
-                    handleReminderMessage(chatId, messageText);
-                    processedCount++;
-                }
-
+                processSingleUpdate(update);
+                processedCount++;
+            } catch (TelegramApiException e) {
+                logger.error("Failed to process update {} due to Telegram error: {}",
+                        update.updateId(), e.getMessage());
             } catch (Exception e) {
-                logger.error("Error processing update: {}", e.getMessage(), e);
+                logger.error("Failed to process update {}: {}",
+                        update.updateId(), e.getMessage(), e);
             }
         }
 
         logger.info("Processed {} updates", processedCount);
         return UpdatesListener.CONFIRMED_UPDATES_ALL;
+    }
+
+    private void processSingleUpdate(Update update) throws TelegramApiException {
+        logger.debug("Processing update ID: {}", update.updateId());
+
+        Message message = update.message();
+        if (message == null || message.text() == null) {
+            return;
+        }
+
+        Chat chat = message.chat();
+        if (chat == null) {
+            return;
+        }
+
+        Long chatId = chat.id();
+        String messageText = message.text().trim();
+        User user = message.from();
+        String userName = getUserName(user);
+
+        logger.info("Message from {} ({}): {}", userName, chatId, messageText);
+
+        if ("/start".equals(messageText)) {
+            handleStartCommand(chatId, userName);
+        }
+        else if ("/myreminders".equals(messageText) || "/list".equals(messageText)) {
+            handleListCommand(chatId);
+        }
+        else if (!messageText.startsWith("/")) {
+            handleReminderMessage(chatId, messageText);
+        }
     }
 
     private void handleReminderMessage(Long chatId, String messageText) {
@@ -98,7 +103,7 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
 
     private void handleListCommand(Long chatId) {
-        var notifications = notificationTaskService.getUserNotifications(chatId);
+        List<NotificationTask> notifications = notificationTaskService.getUserNotifications(chatId);
 
         if (notifications.isEmpty()) {
             sendMessage(chatId, "У вас нет активных напоминаний.");
@@ -107,10 +112,11 @@ public class TelegramBotUpdatesListener implements UpdatesListener {
 
         StringBuilder response = new StringBuilder("Ваши напоминания:\n\n");
 
-        for (var notification : notifications) {
+        for (NotificationTask notification : notifications) {
             response.append("• ")
-                    .append(notification.getNotificationDateTime()
-                            .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")))
+                    .append(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+                            .withZone(ZoneId.systemDefault())
+                            .format(notification.getNotificationDateTime()))
                     .append(": ")
                     .append(notification.getMessageText())
                     .append("\n");

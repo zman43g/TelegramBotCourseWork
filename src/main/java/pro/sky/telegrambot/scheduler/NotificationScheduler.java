@@ -1,5 +1,6 @@
 package pro.sky.telegrambot.scheduler;
 
+import org.springframework.dao.DataAccessException;
 import pro.sky.telegrambot.model.NotificationTask;
 import pro.sky.telegrambot.service.NotificationTaskService;
 import com.pengrad.telegrambot.TelegramBot;
@@ -44,7 +45,7 @@ public class NotificationScheduler {
 
         for (NotificationTask task : tasks) {
             try {
-                               String message = String.format(" *Напоминание!*\n\n%s",
+                String message = String.format(" *Напоминание!*\n\n%s",
                         task.getMessageText());
 
                 SendMessage sendMessage = new SendMessage(task.getChatId(), message);
@@ -55,8 +56,11 @@ public class NotificationScheduler {
                 logger.info("Notification sent: chatId={}, text={}",
                         task.getChatId(), task.getMessageText());
 
+            }  catch (DataAccessException e) {
+                logger.error("Database error while marking notification as sent for task {}: {}",
+                        task.getId(), e.getMessage());
             } catch (Exception e) {
-                logger.error("Failed to send notification for task {}: {}",
+                logger.error("Unexpected error while processing notification task {}: {}",
                         task.getId(), e.getMessage());
             }
         }
